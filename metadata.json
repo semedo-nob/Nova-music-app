@@ -1,0 +1,6 @@
+{
+  "name": "Nova Music",
+  "description": "Nova Music is a premium, immersive Android music player styled with futuristic Gemini gradients, offline scanning, custom Equalizer, and smart AI playlist suggestions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
