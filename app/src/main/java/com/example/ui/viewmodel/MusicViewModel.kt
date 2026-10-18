@@ -8,7 +8,6 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ai.GeminiManager
-import com.example.ai.SuggestedSong
 import com.example.data.model.Playlist
 import com.example.data.model.Track
 import com.example.data.repository.MusicRepository
@@ -137,27 +136,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val _scannedCount = MutableStateFlow<Int?>(null)
     val scannedCount: StateFlow<Int?> = _scannedCount.asStateFlow()
 
-    // Gemini Chat & Assistant States
-    private val _chatMessages = MutableStateFlow<List<ChatMessage>>(
-        listOf(ChatMessage("Nova AI DJ", "Hi, I'm Nova. Ask me to play something from your library, find a song online, or build a playlist for a mood.", isUser = false))
-    )
-    val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
-
-    private val _isChatLoading = MutableStateFlow(false)
-    val isChatLoading: StateFlow<Boolean> = _isChatLoading.asStateFlow()
-
-    private val _suggestedAiSongs = MutableStateFlow<List<SuggestedSong>>(emptyList())
-    val suggestedAiSongs: StateFlow<List<SuggestedSong>> = _suggestedAiSongs.asStateFlow()
-
     private val _isGeneratingPlaylist = MutableStateFlow(false)
     val isGeneratingPlaylist: StateFlow<Boolean> = _isGeneratingPlaylist.asStateFlow()
-
-    // Audio recording & Transcription State
-    private val _isRecording = MutableStateFlow(false)
-    val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
-
-    private val _transcriptionResult = MutableStateFlow("")
-    val transcriptionResult: StateFlow<String> = _transcriptionResult.asStateFlow()
 
     // Theme state (Dark/Light Mode)
     private val _isDarkMode = MutableStateFlow(true) // Default to true (immersive cosmic style)
@@ -359,19 +339,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Authentication & Global Credentials (saved to SharedPreferences)
-    fun signInWithGoogle(name: String, email: String, photoUrl: String? = null) {
-        authSessionManager.signInWithGoogle(name, email, photoUrl)
-    }
-
-    fun signUpWithEmail(name: String, email: String, bio: String = "") {
-        authSessionManager.signUpWithEmail(name, email, bio)
-    }
-
-    fun signInWithEmail(email: String) {
-        authSessionManager.signInWithEmail(email)
-    }
-
     fun signOut() {
         authSessionManager.signOut()
     }
@@ -387,14 +354,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissPlayback() = playbackManager.clearQueue()
-
-    fun updateProfile(name: String, bio: String, photoUrl: String? = null) {
-        authSessionManager.updateProfile(name, bio, photoUrl)
-    }
-
-    fun toggleVipStatus(isVip: Boolean) {
-        authSessionManager.togglePremium(isVip)
-    }
 
     // App Cache Diagnostics & Cleaner
     fun getAppCacheSize(): String {
@@ -610,13 +569,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             updated.add(response)
             _assistantMessages.value = updated
             _isAssistantThinking.value = false
-
-            // Also keep standard chat messages in sync for cross-screen history
-            val djMsgs = _chatMessages.value.toMutableList()
-            djMsgs.add(ChatMessage("You", userPrompt, isUser = true))
-            djMsgs.add(ChatMessage("Nova AI DJ", response.text, isUser = false))
-            _chatMessages.value = djMsgs
-
             speakText(response.text)
         }
     }
@@ -643,55 +595,20 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleCrossfade() {
         _crossfadeEnabled.value = !_crossfadeEnabled.value
+        playbackManager.setCrossfadeEnabled(_crossfadeEnabled.value)
     }
 
     fun setSelectedModel(model: String) {
         _selectedModel.value = model
     }
 
-    // Gemini Chat Messages
-    fun sendChatMessage(text: String, useSearch: Boolean = false) {
-        if (text.trim().isEmpty()) return
-        val currentMsgs = _chatMessages.value.toMutableList()
-        currentMsgs.add(ChatMessage("You", text, isUser = true))
-        _chatMessages.value = currentMsgs
-        _isChatLoading.value = true
-
-        viewModelScope.launch {
-            val responseText = if (useSearch) {
-                // Grounded search call
-                geminiManager.askWithSearchGrounding(text)
-            } else {
-                // Multi-turn chatbot call
-                geminiManager.sendMessage(text, selectedModel.value)
-            }
-
-            val updatedMsgs = _chatMessages.value.toMutableList()
-            updatedMsgs.add(ChatMessage("Nova AI DJ", responseText, isUser = false))
-            _chatMessages.value = updatedMsgs
-            _isChatLoading.value = false
-
-            // Auto-speak the DJ response in a cool futuristic voice!
-            speakText(responseText)
-        }
-    }
-
-    fun clearChat() {
-        geminiManager.resetChat()
-        _chatMessages.value = listOf(
-            ChatMessage("Nova AI DJ", "Neural logs wiped. Ready to begin anew, pilot. What coordinates or rhythms shall we map?", isUser = false)
-        )
-    }
-
     // Smart AI Playlist recommendations (Mood detection)
     fun generateAiPlaylist(moodPrompt: String) {
         if (moodPrompt.trim().isEmpty()) return
         _isGeneratingPlaylist.value = true
-        _suggestedAiSongs.value = emptyList()
 
         viewModelScope.launch {
             val suggested = geminiManager.generateAiPlaylist(moodPrompt)
-            _suggestedAiSongs.value = suggested
             _isGeneratingPlaylist.value = false
 
             val matched = mutableListOf<Track>()
@@ -770,43 +687,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Microphone audio transcription
-    fun startRecordingMock() {
-        // Since emulator doesn't have a real hardware mic guaranteed,
-        // we'll run a beautiful mock transcription process that simulates mic input
-        // and sends real audio packets to transcription API!
-        _isRecording.value = true
-        _transcriptionResult.value = "Listening..."
-    }
-
-    fun stopRecordingAndTranscribe(simulatedPromptId: Int) {
-        _isRecording.value = false
-        _isChatLoading.value = true
-
-        val prompts = listOf(
-            "play some galactic techno lofi beats",
-            "generate me an amoled playlist for focus",
-            "what is the latest music trends of this week?",
-            "how do I configure my bass equalizer?"
-        )
-        val chosenText = prompts.getOrElse(simulatedPromptId) { "play cosmic lofi" }
-
-        viewModelScope.launch {
-            // Generate standard synthesized audio bytes or a real recording bytes if we want,
-            // but sending standard transcription query works perfectly.
-            // We'll call the API with preloaded mock sound wave bytes to verify full end-to-end integration!
-            val mockAudioBytes = ByteArray(1024) // 1kb mock packets
-            val result = geminiManager.transcribeAudio(mockAudioBytes)
-
-            // Let's use our transcribed prompt to search or trigger chat!
-            _transcriptionResult.value = chosenText
-            _isChatLoading.value = false
-
-            // Auto send into chat!
-            sendChatMessage(chosenText)
-        }
-    }
-
     override fun onCleared() {
         super.onCleared()
         // Playback lives in the media session service. Releasing it here stops music
@@ -815,10 +695,3 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         ttsMediaPlayer?.release()
     }
 }
-
-data class ChatMessage(
-    val sender: String,
-    val message: String,
-    val isUser: Boolean,
-    val timestamp: Long = System.currentTimeMillis()
-)

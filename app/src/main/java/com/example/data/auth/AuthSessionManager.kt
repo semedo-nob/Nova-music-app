@@ -101,93 +101,6 @@ class AuthSessionManager(private val context: Context) {
     }
 
     /**
-     * Signs in or signs up with Google, updating SharedPreferences globally.
-     */
-    fun signInWithGoogle(
-        accountName: String,
-        accountEmail: String,
-        photoUrl: String? = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80"
-    ) {
-        val userId = "google_" + UUID.nameUUIDFromBytes(accountEmail.toByteArray()).toString().take(12)
-        val token = "g_token_" + UUID.randomUUID().toString().take(16)
-        val joinDate = getFormattedCurrentDate()
-
-        prefs.edit().apply {
-            putBoolean(KEY_LOGGED_IN, true)
-            putString(KEY_USER_ID, userId)
-            putString(KEY_DISPLAY_NAME, accountName)
-            putString(KEY_EMAIL, accountEmail)
-            putString(KEY_PHOTO_URL, photoUrl)
-            putString(KEY_AUTH_PROVIDER, "google.com")
-            putString(KEY_AUTH_TOKEN, token)
-            putBoolean(KEY_IS_PREMIUM, true)
-            putString(KEY_JOINED_DATE, joinDate)
-            putString(KEY_BIO, "Signed in via Google. Holographic Audio Master VIP.")
-            apply()
-        }
-
-        val updated = UserProfile(
-            id = userId,
-            displayName = accountName,
-            email = accountEmail,
-            photoUrl = photoUrl,
-            provider = "google.com",
-            token = token,
-            isPremium = true,
-            joinedDate = joinDate,
-            bio = "Signed in via Google. Holographic Audio Master VIP."
-        )
-        _currentUser.value = updated
-        _isLoggedIn.value = true
-    }
-
-    /**
-     * Signs up with custom email & password, saving credentials into SharedPreferences.
-     */
-    fun signUpWithEmail(name: String, email: String, bio: String = "") {
-        val userId = "user_" + UUID.randomUUID().toString().take(10)
-        val token = "jwt_" + UUID.randomUUID().toString().take(16)
-        val joinDate = getFormattedCurrentDate()
-        val defaultAvatar = "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200&q=80"
-
-        prefs.edit().apply {
-            putBoolean(KEY_LOGGED_IN, true)
-            putString(KEY_USER_ID, userId)
-            putString(KEY_DISPLAY_NAME, name)
-            putString(KEY_EMAIL, email)
-            putString(KEY_PHOTO_URL, defaultAvatar)
-            putString(KEY_AUTH_PROVIDER, "email")
-            putString(KEY_AUTH_TOKEN, token)
-            putBoolean(KEY_IS_PREMIUM, true)
-            putString(KEY_JOINED_DATE, joinDate)
-            putString(KEY_BIO, if (bio.isNotEmpty()) bio else "Nova Sound Explorer.")
-            apply()
-        }
-
-        val updated = UserProfile(
-            id = userId,
-            displayName = name,
-            email = email,
-            photoUrl = defaultAvatar,
-            provider = "email",
-            token = token,
-            isPremium = true,
-            joinedDate = joinDate,
-            bio = if (bio.isNotEmpty()) bio else "Nova Sound Explorer."
-        )
-        _currentUser.value = updated
-        _isLoggedIn.value = true
-    }
-
-    /**
-     * Signs in with existing email credentials.
-     */
-    fun signInWithEmail(email: String) {
-        val name = email.substringBefore("@").replace(".", " ").capitalize(Locale.ROOT)
-        signUpWithEmail(name, email)
-    }
-
-    /**
      * Updates editable user profile properties in SharedPreferences.
      */
     fun updateProfile(displayName: String, bio: String, photoUrl: String? = null) {
@@ -206,16 +119,6 @@ class AuthSessionManager(private val context: Context) {
             }
             apply()
         }
-        _currentUser.value = updated
-    }
-
-    /**
-     * Toggles VIP/Hi-Res Premium audio membership status.
-     */
-    fun togglePremium(isPremium: Boolean) {
-        val current = _currentUser.value ?: return
-        val updated = current.copy(isPremium = isPremium)
-        prefs.edit().putBoolean(KEY_IS_PREMIUM, isPremium).apply()
         _currentUser.value = updated
     }
 

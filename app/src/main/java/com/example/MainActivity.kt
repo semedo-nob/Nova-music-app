@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,11 +23,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.example.ui.components.LocalNova
 import com.example.ui.components.MiniPlayer
 import com.example.ui.components.NovaBackdrop
@@ -38,9 +38,11 @@ import com.example.ui.screens.AIdjScreen
 import com.example.ui.screens.DjMixerScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
+import com.example.ui.screens.NovaSplash
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.MusicViewModel
+import kotlinx.coroutines.launch
 
 import android.Manifest
 import android.content.Context
@@ -67,7 +69,12 @@ class MainActivity : ComponentActivity() {
 
             MyApplicationTheme(darkTheme = isDarkMode) {
                 CompositionLocalProvider(LocalNova provides if (isDarkMode) NovaDark else NovaLight) {
-                    NovaAppFrame(viewModel = viewModel)
+                    var showSplash by rememberSaveable { mutableStateOf(true) }
+                    if (showSplash) {
+                        NovaSplash(onFinished = { showSplash = false })
+                    } else {
+                        NovaAppFrame(viewModel = viewModel)
+                    }
                 }
             }
         }
@@ -77,15 +84,14 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun NovaAppFrame(viewModel: MusicViewModel = viewModel()) {
-    val navController = rememberNavController()
     val context = LocalContext.current
+    val pages = listOf("home", "library", "aidj", "settings")
+    val pagerState = rememberPagerState(pageCount = { pages.size })
+    val scope = rememberCoroutineScope()
 
     val currentTrack by viewModel.currentTrack.collectAsState()
     var isPlayerExpanded by remember { mutableStateOf(false) }
     var showMixer by remember { mutableStateOf(false) }
-
-    // Navigation state tracking for floating navbar active state
-    var currentRoute by remember { mutableStateOf("home") }
 
     // Android 13+ Notification Permission Handling for Native Lock-Screen and Shade Media Controls
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -176,46 +182,43 @@ fun NovaAppFrame(viewModel: MusicViewModel = viewModel()) {
                         )
                     }
 
-                    // Floating Glassmorphic Navigation Bar
+                    PageControl(
+                        count = pages.size,
+                        selected = pagerState.currentPage,
+                        onSelect = { page ->
+                            scope.launch { pagerState.animateScrollToPage(page) }
+                        }
+                    )
+
                     FloatingNavBar(
-                        activeRoute = currentRoute,
+                        activeRoute = pages[pagerState.currentPage],
                         onNavigate = { route ->
-                            currentRoute = route
-                            navController.navigate(route) {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
+                            val page = pages.indexOf(route)
+                            if (page >= 0) scope.launch { pagerState.animateScrollToPage(page) }
                         }
                     )
                 }
             }
         ) { innerPadding ->
-            // Host our NavHost within the Scaffold content area
-            NavHost(
-                navController = navController,
-                startDestination = "home",
+            HorizontalPager(
+                state = pagerState,
+                beyondViewportPageCount = pages.lastIndex,
+                userScrollEnabled = !isPlayerExpanded && !showMixer,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = innerPadding.calculateBottomPadding() / 3f) // optimized overlay spacing
-            ) {
-                composable("home") {
-                    HomeScreen(viewModel = viewModel)
-                }
-                composable("library") {
-                    LibraryScreen(
+                    .padding(bottom = innerPadding.calculateBottomPadding())
+            ) { page ->
+                when (page) {
+                    0 -> HomeScreen(viewModel = viewModel)
+                    1 -> LibraryScreen(
                         viewModel = viewModel,
                         onOpenMixer = {
                             isPlayerExpanded = false
                             showMixer = true
                         }
                     )
-                }
-                composable("aidj") {
-                    AIdjScreen(viewModel = viewModel)
-                }
-                composable("settings") {
-                    SettingsScreen(viewModel = viewModel)
+                    2 -> AIdjScreen(viewModel = viewModel)
+                    else -> SettingsScreen(viewModel = viewModel)
                 }
             }
         }
@@ -332,3 +335,30 @@ data class NavBarItem(
     val label: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
+
+@Composable
+fun PageControl(
+    count: Int,
+    selected: Int,
+    onSelect: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 2.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        repeat(count) { index ->
+            val active = index == selected
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 4.dp)
+                    .size(if (active) 18.dp else 7.dp, 7.dp)
+                    .clip(CircleShape)
+                    .background(if (active) NeonCyan else OnDarkTextSecondary.copy(alpha = 0.45f))
+                    .clickable { onSelect(index) }
+            )
+        }
+    }
+}

@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -95,7 +94,6 @@ fun SettingsScreen(
 
     var showAuthModal by remember { mutableStateOf(false) }
     var currentCacheSize by remember { mutableStateOf(viewModel.getAppCacheSize()) }
-    var audioNormalization by remember { mutableStateOf(true) }
 
     val bands = EqPresets[eqPreset] ?: EqPresets.getValue("Cyberpunk")
     val cacheMb = currentCacheSize.substringBefore(" ").toFloatOrNull() ?: 0f
@@ -230,8 +228,8 @@ fun SettingsScreen(
                         .fillMaxWidth()
                 )
                 NovaRow(
-                    title = "Gapless crossfade",
-                    subtitle = "Overlap tracks by 3 seconds",
+                    title = "Crossfade",
+                    subtitle = "Fade in the next song",
                     icon = Icons.Default.AllInclusive,
                     accent = CyberPurple,
                     divider = false,
@@ -240,23 +238,6 @@ fun SettingsScreen(
                             checked = crossfade,
                             onCheckedChange = { viewModel.toggleCrossfade() },
                             accent = CyberPurple
-                        )
-                    }
-                )
-                NovaRow(
-                    title = "ReplayGain",
-                    subtitle = "Keep volume even across tracks",
-                    icon = Icons.Default.Tune,
-                    accent = NeonCyan,
-                    divider = false,
-                    trailing = {
-                        NovaSkeuoSwitch(
-                            checked = audioNormalization,
-                            onCheckedChange = {
-                                audioNormalization = it
-                                Toast.makeText(context, if (it) "ReplayGain on" else "ReplayGain off", Toast.LENGTH_SHORT).show()
-                            },
-                            accent = NeonCyan
                         )
                     }
                 )

@@ -81,6 +81,8 @@ class PlaybackManager(
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
 
     private var outputVolume = 1f
+    private var crossfadeEnabled = false
+    private var fadeRunnable: Runnable? = null
 
     // Original unshuffled queue to restore order when disabling shuffle
     private var originalQueue: List<Track> = emptyList()
@@ -198,6 +200,9 @@ class PlaybackManager(
                     _currentTrack.value = track
                     mainScope.launch {
                         repository.recordPlay(track.id)
+                    }
+                    if (crossfadeEnabled && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                        fadeIn()
                     }
                 }
             }
@@ -440,6 +445,27 @@ class PlaybackManager(
     fun setOutputVolume(volume: Float) {
         outputVolume = volume.coerceIn(0f, 1f)
         exoPlayer?.volume = outputVolume
+    }
+
+    fun setCrossfadeEnabled(enabled: Boolean) {
+        crossfadeEnabled = enabled
+    }
+
+    private fun fadeIn() {
+        fadeRunnable?.let { handler.removeCallbacks(it) }
+        val steps = 10
+        var step = 0
+        val job = object : Runnable {
+            override fun run() {
+                val deck = exoPlayer ?: return
+                step++
+                deck.volume = outputVolume * (step / steps.toFloat())
+                if (step < steps) handler.postDelayed(this, 45L) else deck.volume = outputVolume
+            }
+        }
+        fadeRunnable = job
+        exoPlayer?.volume = 0f
+        handler.post(job)
     }
 
     fun pause() {

@@ -7,10 +7,13 @@ The app addresses you by the name you set. A new profile is only a photo and a p
 ## Playing music
 
 - Scan from Settings, or allow storage access from Home.
+- The app opens on a short splash. Tap it to skip.
+- Swipe left or right to move between Home, Library, AI DJ, and Settings. The dots above the bottom bar are the same pages, and the tabs jump to a page directly.
 - Tap a song to play it. The bar at the bottom is the current song.
 - Swipe that bar left or right to stop playback and dismiss it.
 - Open the full player and swipe the top bar down, or tap the chevron, to return to the app.
 - The equalizer bands are vertical faders. Drag a band up or down; the change is applied as you move it.
+- Crossfade, in Settings, fades the next song in when the current one ends.
 
 ## Library
 
