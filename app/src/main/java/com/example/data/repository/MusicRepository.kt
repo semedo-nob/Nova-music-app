@@ -62,80 +62,18 @@ class MusicRepository(
         trackDao.incrementPlayCount(trackId)
     }
 
-    // Initialize the default "Nova Originals" streamable songs so the app has high-quality playback instantly
     suspend fun checkAndPrepopulateOriginals() = withContext(Dispatchers.IO) {
-        val existing = trackDao.getAllTracks().firstOrNull() ?: emptyList()
-        if (existing.isEmpty()) {
-            Log.d("MusicRepository", "Prepopulating default Nova Originals")
-            val presetTracks = listOf(
-                Track(
-                    id = "nova_cosmic_horizon",
-                    title = "Cosmic Horizon",
-                    artist = "Nova Aurora",
-                    album = "Nebula Dreams",
-                    duration = 180000L, // 3:00
-                    path = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-                    genre = "Synthwave",
-                    isLocal = false,
-                    artworkUrl = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500&q=80"
-                ),
-                Track(
-                    id = "nova_gemini_pulse",
-                    title = "Gemini Pulse",
-                    artist = "Lofi Celestial",
-                    album = "Quantum Beat",
-                    duration = 240000L, // 4:00
-                    path = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-                    genre = "Lofi",
-                    isLocal = false,
-                    artworkUrl = "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&q=80"
-                ),
-                Track(
-                    id = "nova_cyber_lounge",
-                    title = "Cyber Lounge",
-                    artist = "Neo-Tokyo",
-                    album = "Grid Runner",
-                    duration = 300000L, // 5:00
-                    path = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-                    genre = "Electronic",
-                    isLocal = false,
-                    artworkUrl = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&q=80"
-                ),
-                Track(
-                    id = "nova_purple_pulsar",
-                    title = "Purple Pulsar",
-                    artist = "Hyperion Beats",
-                    album = "Andromeda",
-                    duration = 210000L, // 3:30
-                    path = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-                    genre = "Techno",
-                    isLocal = false,
-                    artworkUrl = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&q=80"
-                ),
-                Track(
-                    id = "nova_gravity_wave",
-                    title = "Gravity Wave",
-                    artist = "Chronos",
-                    album = "Event Horizon",
-                    duration = 270000L, // 4:30
-                    path = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
-                    genre = "Ambient",
-                    isLocal = false,
-                    artworkUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80"
-                )
-            )
-            trackDao.insertTracks(presetTracks)
-
-            // Setup Smart Playlists
-            val smartPlaylists = listOf(
-                Playlist("smart_favorites", "Liked Songs", "Your absolute favorites", isSmart = true, smartType = "LIKED"),
-                Playlist("smart_recently_played", "Recently Played", "Songs you listened to lately", isSmart = true, smartType = "RECENT_PLAYED"),
-                Playlist("smart_most_played", "Most Played", "Your top heavy-rotation beats", isSmart = true, smartType = "MOST_PLAYED"),
-                Playlist("smart_recently_added", "Recently Added", "Newly imported or discovered tracks", isSmart = true, smartType = "RECENT_ADDED"),
-                Playlist("smart_never_played", "Never Played", "Hidden gems you haven't opened yet", isSmart = true, smartType = "NEVER_PLAYED")
-            )
-            for (p in smartPlaylists) {
-                playlistDao.insertPlaylist(p)
+        trackDao.deletePlaceholderTracks()
+        val smartPlaylists = listOf(
+            Playlist("smart_favorites", "Liked Songs", "Your absolute favorites", isSmart = true, smartType = "LIKED"),
+            Playlist("smart_recently_played", "Recently Played", "Songs you listened to lately", isSmart = true, smartType = "RECENT_PLAYED"),
+            Playlist("smart_most_played", "Most Played", "Your top heavy-rotation beats", isSmart = true, smartType = "MOST_PLAYED"),
+            Playlist("smart_recently_added", "Recently Added", "Newly imported or discovered tracks", isSmart = true, smartType = "RECENT_ADDED"),
+            Playlist("smart_never_played", "Never Played", "Hidden gems you haven't opened yet", isSmart = true, smartType = "NEVER_PLAYED")
+        )
+        for (playlist in smartPlaylists) {
+            if (playlistDao.getPlaylistById(playlist.id) == null) {
+                playlistDao.insertPlaylist(playlist)
             }
         }
     }

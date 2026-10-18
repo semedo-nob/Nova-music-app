@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -765,46 +766,56 @@ fun TactileFader(
         Spacer(modifier = Modifier.height(6.dp))
 
         val nova = LocalNova.current
+        val span = (range.endInclusive - range.start).coerceAtLeast(0.01f)
+        val fraction = ((value - range.start) / span).coerceIn(0f, 1f)
+        val trackHeight = 150.dp
+        val capHeight = 18.dp
         Box(
             modifier = Modifier
-                .width(10.dp)
-                .height(130.dp)
-                .novaInset(nova, 5.dp),
-            contentAlignment = Alignment.BottomCenter
+                .width(48.dp)
+                .height(trackHeight)
+                .pointerInput(range) {
+                    detectTapGestures { offset ->
+                        val next = (1f - (offset.y / size.height)).coerceIn(0f, 1f)
+                        onValueChange(range.start + next * span)
+                    }
+                }
+                .pointerInput(range) {
+                    detectVerticalDragGestures { change, _ ->
+                        change.consume()
+                        val next = (1f - (change.position.y / size.height)).coerceIn(0f, 1f)
+                        onValueChange(range.start + next * span)
+                    }
+                }
         ) {
-            val fraction = ((value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .align(Alignment.Center)
+                    .width(14.dp)
+                    .fillMaxHeight()
+                    .novaInset(nova, 7.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .width(14.dp)
                     .fillMaxHeight(fraction)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(Brush.verticalGradient(listOf(accentColor, accentColor.copy(alpha = 0.35f))))
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = (trackHeight - capHeight) * (1f - fraction))
+                    .size(width = 28.dp, height = capHeight)
                     .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                accentColor,
-                                NeonMagenta.copy(alpha = 0.5f)
-                            )
-                        )
+                        Brush.verticalGradient(listOf(Color(0xFFF4F4F8), Color(0xFFB4B2C2), Color(0xFF6B6980))),
+                        RoundedCornerShape(6.dp)
                     )
             )
         }
 
         Spacer(modifier = Modifier.height(6.dp))
-
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = range,
-            modifier = Modifier
-                .width(48.dp)
-                .height(18.dp),
-            colors = SliderDefaults.colors(
-                thumbColor = Color.White,
-                activeTrackColor = accentColor,
-                inactiveTrackColor = Color(0x33FFFFFF)
-            )
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
 
         Text(
             text = label,

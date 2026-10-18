@@ -119,13 +119,13 @@ fun HomeScreen(
     var selectedGenre by remember { mutableStateOf("All") }
     val searching = searchQuery.trim().isNotEmpty()
 
-    val (hello, role) = remember {
+    val hello = remember {
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         when (hour) {
-            in 0..11 -> "Good morning" to "Explorer"
-            in 12..16 -> "Good afternoon" to "Pilot"
-            in 17..21 -> "Good evening" to "Dreamer"
-            else -> "Late night" to "Cosmic chill"
+            in 0..11 -> "Good morning"
+            in 12..16 -> "Good afternoon"
+            in 17..21 -> "Good evening"
+            else -> "Late night"
         }
     }
 
@@ -139,7 +139,7 @@ fun HomeScreen(
             viewModel.scanLocalTracks()
             Toast.makeText(context, "Scanning local storage…", Toast.LENGTH_SHORT).show()
         } else {
-            Toast.makeText(context, "Storage permission denied. Showing preset music only.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Storage permission is needed to scan your music.", Toast.LENGTH_LONG).show()
         }
     }
     val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -153,11 +153,10 @@ fun HomeScreen(
     }
 
     val genres = remember(allTracks) {
-        val preset = listOf("All", "Synthwave", "Lofi", "Electronic", "Techno", "Ambient")
-        val extra = allTracks.map { it.genre }
-            .filter { name -> name.isNotBlank() && !name.equals("Unknown", true) && preset.none { it.equals(name, true) } }
+        listOf("All") + allTracks.map { it.genre }
+            .filter { name -> name.isNotBlank() && !name.equals("Unknown", true) }
             .distinct()
-        preset + extra
+            .sorted()
     }
     val genreTracks = remember(allTracks, selectedGenre) {
         if (selectedGenre == "All") allTracks
@@ -200,13 +199,14 @@ fun HomeScreen(
                         letterSpacing = (-0.8).sp
                     )
                     Text(
-                        text = "$role, welcome to Nova Deck",
+                        text = currentUser?.displayName?.takeIf { it.isNotBlank() }?.let { "$it, welcome to Nova" }
+                            ?: "Welcome to Nova",
                         color = nova.textDim,
                         fontSize = 14.sp
                     )
                 }
                 AvatarPill(
-                    letter = currentUser?.displayName?.firstOrNull()?.uppercaseChar()?.toString() ?: "N",
+                    letter = currentUser?.displayName?.firstOrNull()?.uppercaseChar()?.toString() ?: "+",
                     photoUrl = currentUser?.photoUrl,
                     onClick = { showAuthDialog = true }
                 )
@@ -266,7 +266,7 @@ fun HomeScreen(
                 Spacer(Modifier.height(26.dp))
             }
 
-            item {
+            if (specials.isNotEmpty()) item {
                 SectionTitle("Nova Specials")
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -394,7 +394,7 @@ private fun AvatarPill(letter: String, photoUrl: String?, onClick: () -> Unit) {
         ) {
             if (!photoUrl.isNullOrBlank()) {
                 Image(
-                    painter = rememberAsyncImagePainter(photoUrl),
+                    painter = rememberAsyncImagePainter(if (photoUrl.startsWith("/")) java.io.File(photoUrl) else photoUrl),
                     contentDescription = "Profile",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()

@@ -144,7 +144,7 @@ fun SettingsScreen(
                         if (!user?.photoUrl.isNullOrEmpty()) {
                             AsyncImage(
                                 model = ImageRequest.Builder(context)
-                                    .data(user?.photoUrl)
+                                    .data(user?.photoUrl?.let { if (it.startsWith("/")) java.io.File(it) else it })
                                     .crossfade(true)
                                     .build(),
                                 contentDescription = "Profile photo",
@@ -167,43 +167,17 @@ fun SettingsScreen(
                     }
                     Spacer(Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = user?.displayName ?: "Guest",
-                                color = nova.text,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            if (user?.isPremium == true) {
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = "VIP",
-                                    color = NeonMagenta,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(NeonMagenta.copy(alpha = 0.22f))
-                                        .border(1.dp, NeonMagenta.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
                         Text(
-                            text = user?.email ?: "Tap to sign in",
-                            color = nova.textDim,
-                            fontSize = 13.sp
+                            text = user?.displayName?.takeIf { it.isNotBlank() } ?: "Add your name",
+                            color = nova.text,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = when (user?.provider) {
-                                "google.com" -> "Synced with Google"
-                                null -> "Not signed in"
-                                else -> "Signed in on this device"
-                            },
-                            color = NeonCyan,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(top = 6.dp)
+                            text = if (user == null) "Tap to set your profile" else "Your profile",
+                            color = nova.textDim,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                     Icon(
@@ -220,7 +194,7 @@ fun SettingsScreen(
             NovaSection(
                 title = "Audio",
                 accent = NeonCyan,
-                footer = "Processed on this device. Supports 24-bit FLAC."
+                footer = "Processed on this device."
             ) {
                 NovaRow(
                     title = "Equalizer",
@@ -395,7 +369,7 @@ fun SettingsScreen(
                 )
                 NovaRow(
                     title = "Rescan media",
-                    subtitle = if (scanCount != null) "$scanCount audio files indexed" else "Library loaded with Nova Originals",
+                    subtitle = if (scanCount != null) "$scanCount audio files indexed" else "Scan this device for music",
                     icon = Icons.Default.Refresh,
                     accent = NeonCyan,
                     divider = false,
@@ -418,7 +392,7 @@ fun SettingsScreen(
             NovaSection(title = "About", accent = NeonCyan) {
                 NovaRow(
                     title = "Nova Music",
-                    subtitle = "Holographic Edition",
+                    subtitle = "Version 1.0",
                     icon = Icons.Default.MusicNote,
                     accent = NeonCyan,
                     divider = true

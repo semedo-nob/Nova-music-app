@@ -137,7 +137,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     // Gemini Chat & Assistant States
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(
-        listOf(ChatMessage("Nova AI DJ", "Welcome to Nova Music, explorer. I am your futuristic holographic DJ. Feel free to talk to me, search for news, ask me to generate custom mood playlists, or play built-in songs!", isUser = false))
+        listOf(ChatMessage("Nova AI DJ", "Hi, I'm Nova. Ask me to play something from your library, find a song online, or build a playlist for a mood.", isUser = false))
     )
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
@@ -300,6 +300,18 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         authSessionManager.signOut()
     }
 
+    fun saveProfile(name: String, photoPath: String?) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        if (isLoggedIn.value) {
+            authSessionManager.updateProfile(trimmed, "", photoPath)
+        } else {
+            authSessionManager.createProfile(trimmed, photoPath)
+        }
+    }
+
+    fun dismissPlayback() = playbackManager.clearQueue()
+
     fun updateProfile(name: String, bio: String, photoUrl: String? = null) {
         authSessionManager.updateProfile(name, bio, photoUrl)
     }
@@ -347,45 +359,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Synced Holographic Lyrics Generator
-    fun getLyricsForCurrentTrack(): List<String> {
-        val track = currentTrack.value ?: return listOf(
-            "[00:00.00] No audio track currently loaded",
-            "[00:04.00] Select any soundwave to begin playback"
-        )
-        return when (track.title) {
-            "Cosmic Horizon" -> listOf(
-                "[00:04.00] In the neon twilight beyond the cyber grid",
-                "[00:08.50] Stars are pulsing through the digital silence",
-                "[00:14.20] Traveling at lightspeed past the rings of Saturn",
-                "[00:20.00] Cosmic waves aligning with our heartbeats",
-                "[00:27.40] We are echoes in the quantum stream",
-                "[00:34.00] Electric memories glowing like stardust",
-                "[00:41.20] Endless horizon, infinity calls us home."
-            )
-            "Gemini Pulse" -> listOf(
-                "[00:03.00] Soft rain tapping against the holographic glass",
-                "[00:08.20] Neural algorithms harmonizing in the low frequency",
-                "[00:15.00] Midnight coffee, blue screen glow",
-                "[00:21.80] Drifting into deep cognitive focus",
-                "[00:28.50] Synapses firing in lo-fi tempo",
-                "[00:36.00] Gemini breathing life into our dreams."
-            )
-            "Cyber Lounge" -> listOf(
-                "[00:05.00] Chrome reflections in Neo-Tokyo streets",
-                "[00:11.00] Basslines bouncing off sky-high towers",
-                "[00:17.50] Synthetic saxophone floating in the haze",
-                "[00:24.00] Down tempo rhythm for orbital travelers",
-                "[00:32.00] The night is young in Sector 09."
-            )
-            else -> listOf(
-                "[00:03.00] Holographic audio signal connected",
-                "[00:08.00] DSP equalization optimized for 24-bit Flac",
-                "[00:15.00] Harmonizing frequencies with your neural pulse",
-                "[00:22.00] \"${track.title}\" by ${track.artist}",
-                "[00:30.00] Immersive soundstage active and calibrated."
-            )
-        }
-    }
+    fun getLyricsForCurrentTrack(): List<String> = emptyList()
 
     // UI Configuration
     fun setAmoledTheme(enabled: Boolean) {

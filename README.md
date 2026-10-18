@@ -1,22 +1,58 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Nova Music
 
-# Run and deploy your AI Studio app
+Nova Music is an Android player for the songs on your device, plus online search, an equalizer, and a Gemini assistant that can find tracks and build playlists from a mood.
 
-This contains everything you need to run your app locally.
+The app addresses you by the name you set. A new profile is only a photo and a preferred name. There is no demo catalog: the library is what a scan finds on the device, plus songs you play from search.
 
-View your app in AI Studio: https://ai.studio/apps/3975f053-27db-404e-923c-3226a0965701
+## Playing music
 
-## Run Locally
+- Scan from Settings, or allow storage access from Home.
+- Tap a song to play it. The bar at the bottom is the current song.
+- Swipe that bar left or right to stop playback and dismiss it.
+- Open the full player and swipe the top bar down, or tap the chevron, to return to the app.
+- Share sends the current title and artist through the system share sheet.
+- The equalizer bands are vertical faders. Drag a band up or down; the change is applied as you move it.
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+## Permissions
 
+| Permission | Why |
+| --- | --- |
+| Read audio | Scan and play songs stored on the device |
+| Microphone | Identify a song playing nearby |
+| Internet | Search, previews, and the Gemini assistant |
+| Notifications | Playback controls while the app is in the background |
+| Foreground media playback | Keep audio playing with a media notification |
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
-7. If you have already published your app in AI Studio, please [request upload key reset](https://support.google.com/googleplay/android-developer/answer/9842756#zippy=%2Crequest-an-upload-key-reset) in Google Play Console.
+## Gemini
+
+Copy `.env.example` to `.env` and set `GEMINI_API_KEY`. The file stays on your machine and is not committed. Without a key, local playback still works; the assistant does not.
+
+Firebase is optional. `google-services.json` is not in this repository. The build warns and continues when that file is missing. Add it only if you enable Firebase features.
+
+## Release build
+
+Requirements: JDK 17 and Android SDK 36. This project expects the SDK at `ANDROID_HOME`.
+
+The release APK is signed with an upload keystore (`alias` `upload`). Pass the store and key passwords when you build. Do not commit the keystore.
+
+```bash
+export ANDROID_HOME="$HOME/Android/Sdk"
+export STORE_PASSWORD="your-store-password"
+export KEY_PASSWORD="your-key-password"
+./gradlew :app:assembleRelease
+```
+
+The signed APK is written to `app/build/outputs/apk/release/app-release.apk`.
+
+`versionCode` is 1 and `versionName` is `1.0`. Raise both before each Play upload.
+
+## Google Play
+
+Before the first production release:
+
+- Create an app in Play Console and upload the signed APK or an Android App Bundle (`./gradlew :app:bundleRelease`).
+- Add a privacy policy. The app reads on-device audio, uses the microphone for recognition, and sends assistant prompts to Gemini when that feature is used.
+- Declare the microphone, storage, and foreground-service permissions in the Play data-safety and permission forms.
+- Complete content rating, target audience, and the media/foreground-service declarations.
+
+The upload keystore password used for local signing must be kept with the keystore. Losing it means you cannot update the same Play listing with that key.

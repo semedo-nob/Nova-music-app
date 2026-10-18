@@ -67,21 +67,37 @@ class AuthSessionManager(private val context: Context) {
             _currentUser.value = user
             _isLoggedIn.value = true
         } else {
-            // Default initial guest session for zero-barrier instant exploration
-            val defaultGuest = UserProfile(
-                id = "guest_nova_user",
-                displayName = "Cyber Explorer",
-                email = "explorer@novamusic.space",
-                photoUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80",
-                provider = "guest",
-                token = "guest_token_session",
-                isPremium = true,
-                joinedDate = getFormattedCurrentDate(),
-                bio = "Holographic audio deck pilot."
-            )
-            _currentUser.value = defaultGuest
+            _currentUser.value = null
             _isLoggedIn.value = false
         }
+    }
+
+    fun createProfile(displayName: String, photoUrl: String?) {
+        val userId = "user_" + UUID.randomUUID().toString().take(10)
+        val joinDate = getFormattedCurrentDate()
+        prefs.edit().apply {
+            putBoolean(KEY_LOGGED_IN, true)
+            putString(KEY_USER_ID, userId)
+            putString(KEY_DISPLAY_NAME, displayName.trim())
+            putString(KEY_EMAIL, "")
+            putString(KEY_PHOTO_URL, photoUrl)
+            putString(KEY_AUTH_PROVIDER, "local")
+            putBoolean(KEY_IS_PREMIUM, false)
+            putString(KEY_JOINED_DATE, joinDate)
+            putString(KEY_BIO, "")
+            apply()
+        }
+        _currentUser.value = UserProfile(
+            id = userId,
+            displayName = displayName.trim(),
+            email = "",
+            photoUrl = photoUrl,
+            provider = "local",
+            isPremium = false,
+            joinedDate = joinDate,
+            bio = ""
+        )
+        _isLoggedIn.value = true
     }
 
     /**
@@ -219,16 +235,7 @@ class AuthSessionManager(private val context: Context) {
         }
 
         _isLoggedIn.value = false
-        _currentUser.value = UserProfile(
-            id = "guest_nova_user",
-            displayName = "Guest Pilot",
-            email = "guest@novamusic.space",
-            photoUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80",
-            provider = "guest",
-            isPremium = false,
-            joinedDate = getFormattedCurrentDate(),
-            bio = "Tap to sign in with Google or create an account."
-        )
+        _currentUser.value = null
     }
 
     private fun getFormattedCurrentDate(): String {

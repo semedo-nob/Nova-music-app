@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +43,8 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.MusicViewModel
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @Composable
 fun MiniPlayer(
@@ -77,10 +81,24 @@ fun MiniPlayer(
 
     val nova = LocalNova.current
     val shape = RoundedCornerShape(26.dp)
+    var swipeX by remember { mutableFloatStateOf(0f) }
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
+            .offset { androidx.compose.ui.unit.IntOffset(swipeX.roundToInt(), 0) }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (abs(swipeX) > 160f) viewModel.dismissPlayback()
+                        swipeX = 0f
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        swipeX += dragAmount
+                    }
+                )
+            }
             .novaRaised(nova, 26.dp, 5.dp)
             .clip(shape)
             .background(Brush.verticalGradient(listOf(nova.glassTop, nova.glassBottom)))

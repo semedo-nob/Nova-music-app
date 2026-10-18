@@ -1,9 +1,11 @@
 package com.example.ui.components
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -29,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -93,25 +96,7 @@ fun NowPlayingScreen(
         return String.format("%d:%02d", mins, secs)
     }
 
-    // Default lyrics map
-    val defaultLyrics = listOf(
-        LyricLine(0L, "✨ Galactic Synth Intro - Tuning Frequencies ✨"),
-        LyricLine(8000L, "Floating through the neon sky..."),
-        LyricLine(16000L, "Watching cosmic clouds sail on by..."),
-        LyricLine(24000L, "In the virtual deep, we find our sound..."),
-        LyricLine(32000L, "Holograms dancing all around..."),
-        LyricLine(42000L, "🌠 Quantum beat, pulse through my soul! 🌠"),
-        LyricLine(50000L, "Gemini is calling, lose control..."),
-        LyricLine(60000L, "Riding on waves of liquid cyan light..."),
-        LyricLine(70000L, "Nova is burning through the cosmic night..."),
-        LyricLine(82000L, "🎸 Synthesizer Interlude - Overdrive Active 🎸"),
-        LyricLine(98000L, "Every orbit carries us closer now..."),
-        LyricLine(110000L, "Floating above the rings of Saturn somehow..."),
-        LyricLine(125000L, "All our coordinates perfectly aligned..."),
-        LyricLine(140000L, "No digital static left behind..."),
-        LyricLine(160000L, "✨ Fading into the celestial silence... ✨"),
-        LyricLine(175000L, "Credits: Nova AI DJ Music Labs")
-    )
+    var dragDown by remember { mutableFloatStateOf(0f) }
 
     Box(
         modifier = modifier
@@ -155,9 +140,22 @@ fun NowPlayingScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header
+            // Header — swipe down to close the player
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .offset { androidx.compose.ui.unit.IntOffset(0, dragDown.toInt().coerceAtLeast(0)) }
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures(
+                            onDragEnd = {
+                                if (dragDown > 140f) onMinimize()
+                                dragDown = 0f
+                            },
+                            onVerticalDrag = { _, dy ->
+                                if (dy > 0f || dragDown > 0f) dragDown = (dragDown + dy).coerceAtLeast(0f)
+                            }
+                        )
+                    },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -384,7 +382,7 @@ fun NowPlayingScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             ) {
                 Text(
-                    text = currentTrack?.title ?: "Cosmic Horizon",
+                    text = currentTrack?.title ?: "Nothing playing",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = OnDarkText,
@@ -393,26 +391,14 @@ fun NowPlayingScreen(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(3.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = currentTrack?.artist ?: "Nova Aurora",
-                        fontSize = 15.sp,
-                        color = OnDarkTextSecondary,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0x2E00E5FF))
-                            .border(0.5.dp, NeonCyan.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 5.dp, vertical = 1.dp)
-                    ) {
-                        Text("24-BIT FLAC", fontSize = 8.sp, color = NeonCyan, fontWeight = FontWeight.ExtraBold)
-                    }
-                }
+                Text(
+                    text = currentTrack?.artist ?: "",
+                    fontSize = 15.sp,
+                    color = OnDarkTextSecondary,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -573,8 +559,12 @@ fun NowPlayingScreen(
 
                 // Share song
                 IconButton(onClick = {
-                    currentTrack?.let {
-                        Toast.makeText(context, "Sharing track: ${it.title} via Nova Mesh! 🚀", Toast.LENGTH_SHORT).show()
+                    currentTrack?.let { track ->
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, "${track.title} — ${track.artist}")
+                        }
+                        context.startActivity(Intent.createChooser(send, "Share"))
                     }
                 }) {
                     Icon(
@@ -602,7 +592,7 @@ fun NowPlayingScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        "Nova EQ Tuner",
+                        "Equalizer",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = OnDarkText
@@ -662,50 +652,18 @@ fun NowPlayingScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // Bass & Virtualizer Sliders
-                    val bass by viewModel.bassLevel.collectAsState()
-                    val virt by viewModel.virtualizerLevel.collectAsState()
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        NovaFader(level = bass / 1000f, accent = NeonCyan, label = "Bass")
-                        NovaFader(level = virt / 1000f, accent = CyberPurple, label = "Space")
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text("Sub Bass: ${bass / 10}%", fontSize = 12.sp, color = OnDarkTextSecondary)
-                        Slider(
-                            value = bass.toFloat(),
-                            onValueChange = { viewModel.setBassBoost(it.toInt()) },
-                            valueRange = 0f..1000f,
-                            colors = SliderDefaults.colors(activeTrackColor = GeminiBlue, thumbColor = SoftCyan)
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text("3D Holographic Spatializer: ${virt / 10}%", fontSize = 12.sp, color = OnDarkTextSecondary)
-                        Slider(
-                            value = virt.toFloat(),
-                            onValueChange = { viewModel.setVirtualizer(it.toInt()) },
-                            valueRange = 0f..1000f,
-                            colors = SliderDefaults.colors(activeTrackColor = CyberPurple, thumbColor = NeonPink)
-                        )
-                    }
-
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    NeumorphicButton(
-                        onClick = { showEqSheet = false },
-                        isAccent = true,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Apply Equalizer Settings", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
+                    Text(
+                        "Drag a band to shape the sound",
+                        color = nova.textDim,
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    NovaButton(
+                        text = "Done",
+                        accent = NeonCyan,
+                        onClick = { showEqSheet = false }
+                    )
                 }
             }
         }
@@ -811,6 +769,13 @@ fun LyricsView(
                 listState.animateScrollToItem(activeIndex)
             }
         }
+    }
+
+    if (lyrics.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No lyrics for this song.", color = OnDarkTextSecondary, fontSize = 15.sp)
+        }
+        return
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

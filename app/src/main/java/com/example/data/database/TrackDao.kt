@@ -65,4 +65,7 @@ interface TrackDao {
 
     @Query("DELETE FROM tracks WHERE isLocal = 1 AND path NOT LIKE 'content://%'")
     suspend fun deleteUnplayableLocalFileTracks()
+
+    @Query("DELETE FROM tracks WHERE id LIKE 'nova_%' OR path LIKE '%soundhelix.com%'")
+    suspend fun deletePlaceholderTracks()
 }
