@@ -10,14 +10,28 @@ The app addresses you by the name you set. A new profile is only a photo and a p
 - Tap a song to play it. The bar at the bottom is the current song.
 - Swipe that bar left or right to stop playback and dismiss it.
 - Open the full player and swipe the top bar down, or tap the chevron, to return to the app.
-- Share sends the current title and artist through the system share sheet.
 - The equalizer bands are vertical faders. Drag a band up or down; the change is applied as you move it.
+
+## Library
+
+Long-press a song, or tap the check button, to select one or more songs.
+
+- **Share** sends the audio file for songs stored on the device. Streams share the title and artist. The share button on the full player does the same for the current song.
+- **Queue** adds the selection to the current queue. If nothing is playing, the selection starts playing.
+- **Playlist** adds the selection to a playlist you already made, or creates a new playlist and adds the songs. Playlists can also be created from the Playlists tab.
+- **Remove** appears inside a playlist you created and takes the songs out of that playlist only.
+- **Delete** removes the songs. On-device files are deleted only after the system confirmation. Songs that are not files on the device are removed from the library.
+
+## DJ mixer
+
+Open the mixer from the waveform button in the Library header. Load a song on deck A and deck B, then slide the crossfader from A toward B. Each deck has its own gain, play/pause, and cue (back to the start). Deck B does not replace the notification for the main player. Closing the mixer stops deck B and restores deck A to full volume.
 
 ## Permissions
 
 | Permission | Why |
 | --- | --- |
 | Read audio | Scan and play songs stored on the device |
+| Write storage (Android 10 and older) | Delete songs stored on the device |
 | Microphone | Identify a song playing nearby |
 | Internet | Search, previews, and the Gemini assistant |
 | Notifications | Playback controls while the app is in the background |

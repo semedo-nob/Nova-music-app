@@ -80,6 +80,8 @@ class PlaybackManager(
     private val _playbackError = MutableStateFlow<String?>(null)
     val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
 
+    private var outputVolume = 1f
+
     // Original unshuffled queue to restore order when disabling shuffle
     private var originalQueue: List<Track> = emptyList()
 
@@ -417,6 +419,7 @@ class PlaybackManager(
             player.repeatMode = repeatMode.value
             player.shuffleModeEnabled = false
             player.setPlaybackSpeed(playbackSpeed.value)
+            player.volume = outputVolume
             player.prepare()
             player.play()
             startPlaybackService()
@@ -429,8 +432,14 @@ class PlaybackManager(
 
     fun play() {
         val player = exoPlayer ?: setupExoPlayer()
+        player.volume = outputVolume
         player.play()
         startPlaybackService()
+    }
+
+    fun setOutputVolume(volume: Float) {
+        outputVolume = volume.coerceIn(0f, 1f)
+        exoPlayer?.volume = outputVolume
     }
 
     fun pause() {
@@ -465,6 +474,27 @@ class PlaybackManager(
     }
 
     // Queue management functions
+    fun removeTracks(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        val old = _queue.value
+        if (old.none { it.id in ids }) return
+        val updated = old.filter { it.id !in ids }
+        if (updated.isEmpty()) {
+            clearQueue()
+            return
+        }
+        val playingId = _currentTrack.value?.id
+        val removeIndices = old.mapIndexedNotNull { index, track ->
+            index.takeIf { track.id in ids }
+        }.sortedDescending()
+        _queue.value = updated
+        originalQueue = originalQueue.filter { it.id !in ids }
+        removeIndices.forEach { index -> exoPlayer?.removeMediaItem(index) }
+        if (playingId != null && playingId !in ids) {
+            _currentIndex.value = updated.indexOfFirst { it.id == playingId }.coerceAtLeast(0)
+        }
+    }
+
     fun addToQueue(track: Track) {
         val currentQueue = _queue.value.toMutableList()
         currentQueue.add(track)

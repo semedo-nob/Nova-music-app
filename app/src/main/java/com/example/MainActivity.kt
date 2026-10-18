@@ -35,6 +35,7 @@ import com.example.ui.components.NovaLight
 import com.example.ui.components.NowPlayingScreen
 import com.example.ui.components.novaRaised
 import com.example.ui.screens.AIdjScreen
+import com.example.ui.screens.DjMixerScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.SettingsScreen
@@ -81,6 +82,7 @@ fun NovaAppFrame(viewModel: MusicViewModel = viewModel()) {
 
     val currentTrack by viewModel.currentTrack.collectAsState()
     var isPlayerExpanded by remember { mutableStateOf(false) }
+    var showMixer by remember { mutableStateOf(false) }
 
     // Navigation state tracking for floating navbar active state
     var currentRoute by remember { mutableStateOf("home") }
@@ -164,7 +166,7 @@ fun NovaAppFrame(viewModel: MusicViewModel = viewModel()) {
                 ) {
                     // Mini Player docked at bottom
                     AnimatedVisibility(
-                        visible = currentTrack != null && !isPlayerExpanded,
+                        visible = currentTrack != null && !isPlayerExpanded && !showMixer,
                         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
                         exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
                     ) {
@@ -201,7 +203,13 @@ fun NovaAppFrame(viewModel: MusicViewModel = viewModel()) {
                     HomeScreen(viewModel = viewModel)
                 }
                 composable("library") {
-                    LibraryScreen(viewModel = viewModel)
+                    LibraryScreen(
+                        viewModel = viewModel,
+                        onOpenMixer = {
+                            isPlayerExpanded = false
+                            showMixer = true
+                        }
+                    )
                 }
                 composable("aidj") {
                     AIdjScreen(viewModel = viewModel)
@@ -222,6 +230,21 @@ fun NovaAppFrame(viewModel: MusicViewModel = viewModel()) {
             NowPlayingScreen(
                 viewModel = viewModel,
                 onMinimize = { isPlayerExpanded = false }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showMixer,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            DjMixerScreen(
+                viewModel = viewModel,
+                onClose = {
+                    viewModel.closeMixer()
+                    showMixer = false
+                }
             )
         }
     }

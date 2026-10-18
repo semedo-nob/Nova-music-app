@@ -13,6 +13,7 @@ import com.example.data.model.Playlist
 import com.example.data.model.Track
 import com.example.data.repository.MusicRepository
 import com.example.di.ServiceLocator
+import com.example.playback.DjMixer
 import com.example.playback.PlaybackManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -42,6 +43,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: MusicRepository = ServiceLocator.getRepository(application)
     private val playbackManager: PlaybackManager = ServiceLocator.getPlaybackManager(application)
+    private val djMixer = DjMixer(application)
     private val geminiManager: GeminiManager = ServiceLocator.getGeminiManager(application)
     private val authSessionManager: com.example.data.auth.AuthSessionManager = ServiceLocator.getAuthSessionManager(application)
     private val songRecognitionService: SongRecognitionService = ServiceLocator.getSongRecognitionService(application)
@@ -258,6 +260,80 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.addTrackToPlaylist(playlistId, trackId)
         }
+    }
+
+    fun addTracksToPlaylist(playlistId: String, trackIds: List<String>) {
+        viewModelScope.launch {
+            repository.addTracksToPlaylist(playlistId, trackIds)
+        }
+    }
+
+    fun createPlaylistWithTracks(name: String, description: String = "", trackIds: List<String>) {
+        viewModelScope.launch {
+            val id = repository.createPlaylist(name, description)
+            if (trackIds.isNotEmpty()) repository.addTracksToPlaylist(id, trackIds)
+        }
+    }
+
+    fun removeTracksFromPlaylist(playlistId: String, trackIds: List<String>) {
+        viewModelScope.launch {
+            trackIds.forEach { repository.removeTrackFromPlaylist(playlistId, it) }
+        }
+    }
+
+    fun removeTracks(ids: List<String>) {
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            repository.deleteTracks(ids)
+            playbackManager.removeTracks(ids.toSet())
+        }
+    }
+
+    fun addTracksToQueue(tracks: List<Track>) {
+        if (tracks.isEmpty()) return
+        if (playbackManager.currentTrack.value == null) {
+            playbackManager.playQueue(tracks, 0)
+        } else {
+            tracks.forEach { playbackManager.addToQueue(it) }
+        }
+    }
+
+    val mixerDeckBTrack = djMixer.deckBTrack
+    val mixerDeckBPlaying = djMixer.deckBPlaying
+    val mixerDeckBPosition = djMixer.deckBPosition
+    val mixerDeckBDuration = djMixer.deckBDuration
+    val mixerCrossfader = djMixer.crossfader
+    val mixerDeckAGain = djMixer.deckAGain
+    val mixerDeckBGain = djMixer.deckBGain
+
+    fun loadMixerDeckA(track: Track) {
+        playbackManager.playQueue(listOf(track), 0)
+        playbackManager.setOutputVolume(djMixer.deckAVolume())
+    }
+
+    fun loadMixerDeckB(track: Track) = djMixer.load(track)
+
+    fun toggleMixerDeckB() = djMixer.toggleDeckB()
+
+    fun cueMixerDeckA() = playbackManager.seekTo(0L)
+
+    fun cueMixerDeckB() = djMixer.cueDeckB()
+
+    fun setMixerCrossfader(position: Float) {
+        djMixer.setCrossfader(position)
+        playbackManager.setOutputVolume(djMixer.deckAVolume())
+    }
+
+    fun setMixerDeckAGain(gain: Float) {
+        djMixer.setDeckAGain(gain)
+        playbackManager.setOutputVolume(djMixer.deckAVolume())
+    }
+
+    fun setMixerDeckBGain(gain: Float) = djMixer.setDeckBGain(gain)
+
+    fun closeMixer() {
+        djMixer.stopDeckB()
+        playbackManager.setOutputVolume(1f)
     }
 
     fun removeTrackFromPlaylist(playlistId: String, trackId: String) {
@@ -735,6 +811,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         super.onCleared()
         // Playback lives in the media session service. Releasing it here stops music
         // whenever the activity is destroyed, including when the user leaves the app.
+        djMixer.release()
         ttsMediaPlayer?.release()
     }
 }

@@ -68,4 +68,7 @@ interface TrackDao {
 
     @Query("DELETE FROM tracks WHERE id LIKE 'nova_%' OR path LIKE '%soundhelix.com%'")
     suspend fun deletePlaceholderTracks()
+
+    @Query("DELETE FROM tracks WHERE id IN (:ids)")
+    suspend fun deleteTracksByIds(ids: List<String>)
 }

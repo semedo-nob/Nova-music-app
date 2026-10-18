@@ -1,6 +1,5 @@
 package com.example.ui.components
 
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -560,11 +559,7 @@ fun NowPlayingScreen(
                 // Share song
                 IconButton(onClick = {
                     currentTrack?.let { track ->
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, "${track.title} — ${track.artist}")
-                        }
-                        context.startActivity(Intent.createChooser(send, "Share"))
+                        com.example.ui.SongActions.share(context, listOf(track))
                     }
                 }) {
                     Icon(

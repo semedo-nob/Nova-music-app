@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -40,6 +41,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
@@ -82,6 +87,8 @@ import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.example.data.model.Playlist
 import com.example.data.model.RecognizedTrack
+import com.example.data.model.Track
+import com.example.ui.SongActions
 import com.example.ui.components.LocalNova
 import com.example.ui.components.NovaButton
 import com.example.ui.components.NovaGlassCard
@@ -102,6 +109,7 @@ private val MetalLo = Color(0xFF6B6980)
 @Composable
 fun LibraryScreen(
     viewModel: MusicViewModel,
+    onOpenMixer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val songs by viewModel.allTracks.collectAsState()
@@ -123,6 +131,22 @@ fun LibraryScreen(
     var showListeningDialog by remember { mutableStateOf(false) }
     var playlistNameInput by remember { mutableStateOf("") }
     var playlistDescInput by remember { mutableStateOf("") }
+    var selecting by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(setOf<String>()) }
+    var showAddToPlaylist by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var newPlaylistForSelection by remember { mutableStateOf("") }
+    var pendingDeleteIds by remember { mutableStateOf(listOf<String>()) }
+
+    val deleteLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK && pendingDeleteIds.isNotEmpty()) {
+            viewModel.removeTracks(pendingDeleteIds)
+            Toast.makeText(context, "Deleted ${pendingDeleteIds.size} songs", Toast.LENGTH_SHORT).show()
+            selecting = false
+            selectedIds = emptySet()
+        }
+        pendingDeleteIds = emptyList()
+    }
 
     var activeFilterType by remember { mutableStateOf<String?>(null) }
     var activeFilterValue by remember { mutableStateOf<String?>(null) }
@@ -204,7 +228,7 @@ fun LibraryScreen(
                     letterSpacing = (-0.8).sp
                 )
                 Text(
-                    text = if (filtering) activeFilterValue ?: "Browse your music" else "Browse your music",
+                    text = if (selecting) "${selectedIds.size} selected" else if (filtering) activeFilterValue ?: "Browse your music" else "Browse your music",
                     color = nova.textDim,
                     fontSize = 13.sp,
                     maxLines = 1,
@@ -213,15 +237,28 @@ fun LibraryScreen(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolButton(Icons.Default.Hearing, "Identify music", onClick = { startListening() })
-                if (filtering) {
-                    ToolButton(Icons.AutoMirrored.Filled.ArrowBack, "Back") {
-                        activeFilterType = null
-                        activeFilterValue = null
-                        activeFilterPlaylistId = null
+                if (selecting) {
+                    ToolButton(Icons.Default.Close, "Cancel selection") {
+                        selecting = false
+                        selectedIds = emptySet()
                     }
-                } else if (libraryTab == 1) {
-                    ToolButton(Icons.Default.Add, "Create playlist") { showCreatePlaylistDialog = true }
+                } else {
+                    ToolButton(Icons.Default.GraphicEq, "DJ mixer", onClick = onOpenMixer)
+                    ToolButton(Icons.Default.Hearing, "Identify music", onClick = { startListening() })
+                    if (filtering || libraryTab == 0) {
+                        ToolButton(Icons.Default.CheckCircle, "Select songs") { selecting = true }
+                    }
+                    if (filtering) {
+                        ToolButton(Icons.AutoMirrored.Filled.ArrowBack, "Back") {
+                            activeFilterType = null
+                            activeFilterValue = null
+                            activeFilterPlaylistId = null
+                            selecting = false
+                            selectedIds = emptySet()
+                        }
+                    } else if (libraryTab == 1) {
+                        ToolButton(Icons.Default.Add, "Create playlist") { showCreatePlaylistDialog = true }
+                    }
                 }
             }
         }
@@ -252,34 +289,70 @@ fun LibraryScreen(
             Spacer(Modifier.height(16.dp))
         }
 
+        if (selecting) {
+            val actionSongs = if (filtering) filteredSongs else songs
+            val chosen = actionSongs.filter { it.id in selectedIds }
+            val customPlaylist = activeFilterPlaylistId?.takeIf { filtering && !it.startsWith("smart_") }
+            SelectionActions(
+                enabled = chosen.isNotEmpty(),
+                canRemoveFromPlaylist = customPlaylist != null,
+                onShare = { SongActions.share(context, chosen) },
+                onQueue = {
+                    viewModel.addTracksToQueue(chosen)
+                    Toast.makeText(context, "Added ${chosen.size} to the queue", Toast.LENGTH_SHORT).show()
+                    selecting = false
+                    selectedIds = emptySet()
+                },
+                onPlaylist = { showAddToPlaylist = true },
+                onRemove = {
+                    customPlaylist?.let { viewModel.removeTracksFromPlaylist(it, chosen.map { track -> track.id }) }
+                    Toast.makeText(context, "Removed from playlist", Toast.LENGTH_SHORT).show()
+                    selecting = false
+                    selectedIds = emptySet()
+                },
+                onDelete = { showDeleteConfirm = true }
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
         Box(modifier = Modifier.weight(1f)) {
             if (filtering) {
                 if (filteredSongs.isEmpty()) {
                     LibraryEmptyState("tracks in this playlist")
                 } else {
-                    LazyColumn(contentPadding = PaddingValues(bottom = 120.dp)) {
-                        items(filteredSongs, key = { it.id }) { track ->
-                            TrackListItem(
-                                track = track,
-                                onPlay = { viewModel.playTrack(track, filteredSongs) },
-                                onFavorite = { viewModel.toggleFavorite(track.id) }
-                            )
-                        }
-                    }
+                    SelectableSongColumn(
+                        tracks = filteredSongs,
+                        selecting = selecting,
+                        selectedIds = selectedIds,
+                        onToggle = { track ->
+                            selectedIds = if (track.id in selectedIds) selectedIds - track.id else selectedIds + track.id
+                        },
+                        onStartSelection = { track ->
+                            selecting = true
+                            selectedIds = selectedIds + track.id
+                        },
+                        onPlay = { track -> viewModel.playTrack(track, filteredSongs) },
+                        onFavorite = { viewModel.toggleFavorite(it) }
+                    )
                 }
             } else when (libraryTab) {
                 0 -> if (songs.isEmpty()) {
                     LibraryEmptyState("songs")
                 } else {
-                    LazyColumn(contentPadding = PaddingValues(bottom = 120.dp)) {
-                        items(songs, key = { it.id }) { track ->
-                            TrackListItem(
-                                track = track,
-                                onPlay = { viewModel.playTrack(track, songs) },
-                                onFavorite = { viewModel.toggleFavorite(track.id) }
-                            )
-                        }
-                    }
+                    SelectableSongColumn(
+                        tracks = songs,
+                        selecting = selecting,
+                        selectedIds = selectedIds,
+                        onToggle = { track ->
+                            selectedIds = if (track.id in selectedIds) selectedIds - track.id else selectedIds + track.id
+                        },
+                        onStartSelection = { track ->
+                            selecting = true
+                            selectedIds = selectedIds + track.id
+                        },
+                        onPlay = { track -> viewModel.playTrack(track, songs) },
+                        onFavorite = { viewModel.toggleFavorite(it) }
+                    )
                 }
                 1 -> {
                     val sorted = playlists.sortedByDescending { it.isSmart }
@@ -426,6 +499,178 @@ fun LibraryScreen(
                 }
             }
         }
+    }
+
+    if (showAddToPlaylist) {
+        val actionSongs = if (filtering) filteredSongs else songs
+        val chosen = actionSongs.filter { it.id in selectedIds }
+        val customPlaylists = playlists.filter { !it.isSmart }
+        Dialog(onDismissRequest = { showAddToPlaylist = false }) {
+            NovaGlassCard(corner = 22.dp, modifier = Modifier.widthIn(max = 360.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text("Add to playlist", color = nova.text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(12.dp))
+                    InsetField(newPlaylistForSelection, "New playlist name") { newPlaylistForSelection = it }
+                    Spacer(Modifier.height(10.dp))
+                    NovaButton(
+                        text = "Create and add",
+                        accent = NeonCyan,
+                        onClick = {
+                            if (newPlaylistForSelection.isNotBlank() && chosen.isNotEmpty()) {
+                                viewModel.createPlaylistWithTracks(newPlaylistForSelection.trim(), "", chosen.map { it.id })
+                                newPlaylistForSelection = ""
+                                showAddToPlaylist = false
+                                selecting = false
+                                selectedIds = emptySet()
+                                Toast.makeText(context, "Playlist created", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    if (customPlaylists.isEmpty()) {
+                        Text("Or create one above.", color = nova.textDim, fontSize = 13.sp)
+                    } else {
+                        LazyColumn(modifier = Modifier.height(220.dp)) {
+                            items(customPlaylists, key = { it.id }) { playlist ->
+                                Text(
+                                    playlist.name,
+                                    color = nova.text,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.addTracksToPlaylist(playlist.id, chosen.map { it.id })
+                                            showAddToPlaylist = false
+                                            selecting = false
+                                            selectedIds = emptySet()
+                                            Toast.makeText(context, "Added to ${playlist.name}", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .padding(vertical = 12.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showDeleteConfirm) {
+        val actionSongs = if (filtering) filteredSongs else songs
+        val chosen = actionSongs.filter { it.id in selectedIds }
+        val onDevice = chosen.count { it.path.startsWith("content://") }
+        Dialog(onDismissRequest = { showDeleteConfirm = false }) {
+            NovaGlassCard(corner = 22.dp, modifier = Modifier.widthIn(max = 360.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text("Delete ${chosen.size} songs?", color = nova.text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        if (onDevice > 0) "Songs stored on this device are deleted after you confirm. This cannot be undone."
+                        else "These songs will be removed from your library.",
+                        color = nova.textDim,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
+                    )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            "Cancel",
+                            color = nova.textDim,
+                            modifier = Modifier.clickable { showDeleteConfirm = false }.padding(10.dp)
+                        )
+                        NovaButton(
+                            text = "Delete",
+                            accent = NeonMagenta,
+                            onClick = {
+                                showDeleteConfirm = false
+                                val waiting = SongActions.prepareDeviceDelete(
+                                    context = context,
+                                    tracks = chosen,
+                                    launchConsent = { deleteLauncher.launch(it) },
+                                    removeNow = { viewModel.removeTracks(it) }
+                                )
+                                pendingDeleteIds = waiting
+                                if (waiting.isEmpty()) {
+                                    selecting = false
+                                    selectedIds = emptySet()
+                                    Toast.makeText(context, "Removed from library", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SelectableSongColumn(
+    tracks: List<Track>,
+    selecting: Boolean,
+    selectedIds: Set<String>,
+    onToggle: (Track) -> Unit,
+    onStartSelection: (Track) -> Unit,
+    onPlay: (Track) -> Unit,
+    onFavorite: (String) -> Unit
+) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 120.dp)) {
+        items(tracks, key = { it.id }) { track ->
+            TrackListItem(
+                track = track,
+                selected = track.id in selectedIds,
+                onPlay = {
+                    if (selecting) onToggle(track) else onPlay(track)
+                },
+                onLongPress = { onStartSelection(track) },
+                onFavorite = { onFavorite(track.id) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectionActions(
+    enabled: Boolean,
+    canRemoveFromPlaylist: Boolean,
+    onShare: () -> Unit,
+    onQueue: () -> Unit,
+    onPlaylist: () -> Unit,
+    onRemove: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val nova = LocalNova.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .novaInset(nova, 16.dp)
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        SelectionAction("Share", Icons.Default.Share, enabled, onShare)
+        SelectionAction("Queue", Icons.Default.QueueMusic, enabled, onQueue)
+        SelectionAction("Playlist", Icons.Default.Add, enabled, onPlaylist)
+        if (canRemoveFromPlaylist) {
+            SelectionAction("Remove", Icons.Default.Close, enabled, onRemove)
+        }
+        SelectionAction("Delete", Icons.Default.Delete, enabled, onDelete)
+    }
+}
+
+@Composable
+private fun SelectionAction(
+    label: String,
+    icon: ImageVector,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val nova = LocalNova.current
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Icon(icon, contentDescription = label, tint = if (enabled) NeonCyan else nova.textDim, modifier = Modifier.size(18.dp))
+        Text(label, color = if (enabled) nova.text else nova.textDim, fontSize = 11.sp)
     }
 }
 

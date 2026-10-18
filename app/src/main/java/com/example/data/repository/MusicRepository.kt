@@ -175,6 +175,14 @@ class MusicRepository(
         playlistDao.addTrackToPlaylist(playlistId, trackId)
     }
 
+    suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<String>) = withContext(Dispatchers.IO) {
+        trackIds.forEach { trackId -> playlistDao.addTrackToPlaylist(playlistId, trackId) }
+    }
+
+    suspend fun deleteTracks(ids: List<String>) = withContext(Dispatchers.IO) {
+        if (ids.isNotEmpty()) trackDao.deleteTracksByIds(ids)
+    }
+
     suspend fun removeTrackFromPlaylist(playlistId: String, trackId: String) = withContext(Dispatchers.IO) {
         playlistDao.removeTrackFromPlaylist(playlistId, trackId)
     }

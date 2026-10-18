@@ -16,7 +16,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -763,18 +765,23 @@ fun SmartPlaylistCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TrackListItem(
     track: Track,
     onPlay: () -> Unit,
     onFavorite: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    onLongPress: (() -> Unit)? = null
 ) {
     val nova = LocalNova.current
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onPlay)
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (selected) NeonCyan.copy(alpha = 0.16f) else Color.Transparent)
+            .combinedClickable(onClick = onPlay, onLongClick = onLongPress)
             .padding(horizontal = 4.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
